@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgriTrack - Crop Record System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><div class="logo">🌾</div><div><h1>AgriTrack</h1><span>Crop Record System</span></div></div>
+  <a class="btn primary" href="#add-crop">+ Add Crop</a>
+</header>
+<main class="container">
+  <section class="hero">
+    <div><p class="eyebrow">AGRICULTURE MANAGEMENT</p><h2>Keep every crop record<br><span>simple & organized.</span></h2><p class="hero-text">Record crops, fields, seasons and expected yields in one easy-to-use dashboard.</p><a class="btn dark" href="#records">View Records ↓</a></div>
+    <div class="hero-art">🌱<div class="sun">☀️</div></div>
+  </section>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}<div class="alerts">{% for category, message in messages %}<div class="alert {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+  {% endwith %}
+
+  <section class="stats">
+    <div class="stat"><span>🌱</span><div><small>Total Records</small><strong>{{ crops|length }}</strong></div></div>
+    <div class="stat"><span>📐</span><div><small>Total Area</small><strong>{{ "%.2f"|format(total_area) }} <em>acres</em></strong></div></div>
+    <div class="stat"><span>🌾</span><div><small>Crop Types</small><strong>{{ crop_types }}</strong></div></div>
+    <div class="stat"><span>🗓️</span><div><small>Seasons Used</small><strong>{{ season_count }}</strong></div></div>
+  </section>
+
+  <section id="add-crop" class="card">
+    <div class="section-heading"><div><p class="eyebrow">NEW RECORD</p><h3>Add Crop Record</h3></div><span class="badge">* Required</span></div>
+    <form action="{{ url_for('add_crop') }}" method="POST" class="grid-form">
+      <label>Farmer Name *<input name="farmer_name" placeholder="e.g. Ravi Kumar" required></label>
+      <label>Crop Name *<input name="crop_name" placeholder="e.g. Rice" required></label>
+      <label>Field Name *<input name="field_name" placeholder="e.g. Field 1" required></label>
+      <label>Area (acres) *<input type="number" name="area" min="0.1" step="0.01" placeholder="e.g. 2.5" required></label>
+      <label>Sowing Date *<input type="date" name="sowing_date" required></label>
+      <label>Expected Harvest<input type="date" name="harvest_date"></label>
+      <label>Season *<select name="season" required><option value="">Select season</option><option>Kharif</option><option>Rabi</option><option>Zaid</option><option>Summer</option><option>Other</option></select></label>
+      <label>Expected Yield<input name="expected_yield" placeholder="e.g. 30 bags"></label>
+      <div class="form-actions"><button class="btn primary" type="submit">Save Crop Record</button></div>
+    </form>
+  </section>
+
+  <section id="records" class="card">
+    <div class="section-heading"><div><p class="eyebrow">CROP DATABASE</p><h3>All Crop Records</h3></div>{% if crops %}<form action="{{ url_for('clear_all') }}" method="POST" onsubmit="return confirm('Delete all crop records?');"><button class="btn danger-outline">Clear All</button></form>{% endif %}</div>
+    <div class="search"><input id="searchBox" onkeyup="searchTable()" placeholder="🔍 Search farmer, crop, field or season..."></div>
+    {% if crops %}
+    <div class="table-wrap"><table id="cropTable"><thead><tr><th>Farmer</th><th>Crop</th><th>Field</th><th>Area</th><th>Sowing</th><th>Harvest</th><th>Season</th><th>Yield</th><th>Actions</th></tr></thead><tbody>
+    {% for c in crops|reverse %}<tr><td><strong>{{ c.farmer_name }}</strong></td><td>{{ c.crop_name }}</td><td>{{ c.field_name }}</td><td>{{ c.area }} ac</td><td>{{ c.sowing_date }}</td><td>{{ c.harvest_date or '—' }}</td><td><span class="season">{{ c.season }}</span></td><td>{{ c.expected_yield or '—' }}</td><td class="actions"><button class="icon-btn" onclick='openEdit({{ c|tojson }})'>✏️</button><form action="{{ url_for('delete_crop', record_id=c.id) }}" method="POST" onsubmit="return confirm('Delete this record?');" style="display:inline"><button class="icon-btn danger-icon">🗑️</button></form></td></tr>{% endfor %}
+    </tbody></table></div>
+    {% else %}<div class="empty"><div>🌱</div><h4>No crop records yet</h4><p>Add your first crop record using the form above.</p></div>{% endif %}
+  </section>
+
+  <section class="card"><p class="eyebrow">PROJECT FEATURES</p><h3>Built for your PBL</h3><div class="feature-grid"><div>➕<strong>CRUD</strong><span>Add, view, update & delete</span></div><div>💾<strong>File Handling</strong><span>Records stored in CSV</span></div><div>🛡️<strong>Validation</strong><span>Checks invalid inputs</span></div><div>📊<strong>Dashboard</strong><span>Quick crop statistics</span></div></div></section>
+</main><div class="feature-grid">
+    <div class="feature-card">
+        <h3>📊 Total Crop Records</h3>
+        <p id="reportTotal">0</p>
+        <p>View total crop records, cultivated area, crop types, and season-wise information.</p>
+    </div>
+    <div class="feature-card">
+        <h3>🌱 Crop Types</h3>
+        <p id="reportCrops">0</p>
+        </div>
+        <div class="feature-card">
+            <h3>🌦️ Seasons</h3>
+            <p id="reportSeasons">0</p>
+    </div>
+    <div class="feature-card">
+        <h3>🌾 Total Cultivated Area</h3>
+        <p id="reportArea">0 acres</p>
+        <p>Quickly understand the crop records stored in the system.</p>
+    </div>
+</div>
+
+<div id="editModal" class="modal"><div class="modal-box"><button class="close" onclick="closeEdit()">×</button><p class="eyebrow">UPDATE RECORD</p><h3>Edit Crop Record</h3><form id="editForm" method="POST" class="grid-form">
+<label>Farmer Name<input id="e_farmer" name="farmer_name" required></label><label>Crop Name<input id="e_crop" name="crop_name" required></label><label>Field Name<input id="e_field" name="field_name" required></label><label>Area (acres)<input id="e_area" name="area" type="number" min="0.01" step="0.01" required></label><label>Sowing Date<input id="e_sowing" name="sowing_date" type="date" required></label><label>Harvest Date<input id="e_harvest" name="harvest_date" type="date"></label><label>Season<select id="e_season" name="season"><option>Kharif</option><option>Rabi</option><option>Zaid</option><option>Summer</option><option>Other</option></select></label><label>Expected Yield<input id="e_yield" name="expected_yield"></label><div class="form-actions"><button class="btn primary">Update Record</button></div>
+</form></div></div>
+<script>
+function searchTable(){const q=document.getElementById('searchBox').value.toLowerCase();document.querySelectorAll('#cropTable tbody tr').forEach(r=>r.style.display=r.innerText.toLowerCase().includes(q)?'':'none')}
+function openEdit(c){document.getElementById('editForm').action='/update/'+c.id;['farmer','crop','field','area','sowing','harvest','season','yield'].forEach(k=>document.getElementById('e_'+k).value=c[k==='farmer'?'farmer_name':k==='crop'?'crop_name':k==='field'?'field_name':k==='sowing'?'sowing_date':k==='harvest'?'harvest_date':k==='season'?'season':k==='yield'?'expected_yield':'area']||'');document.getElementById('editModal').classList.add('show')}
+function closeEdit(){document.getElementById('editModal').classList.remove('show')}window.onclick=e=>{if(e.target.id==='editModal')closeEdit()}
+document.getElementById("reportTotal").textContent =
+document.querySelectorAll("#records tbody tr").length;const rows = document.querySelectorAll("#records tbody tr");
+let totalArea = 0;
+
+rows.forEach(row => {
+    const area = parseFloat(row.cells[3].textContent);
+    if (!isNaN(area)) {
+        totalArea += area;
+    }
+});
+
+document.getElementById("reportArea").textContent =
+    totalArea.toFixed(2) + " acres";const cropRows = document.querySelectorAll("#records tbody tr");
+const cropTypes = new Set();
+
+cropRows.forEach(row => {
+    cropTypes.add(row.cells[2].textContent.trim());
+});
+
+document.getElementById("reportCrops").textContent = cropTypes.size;const seasonRows = document.querySelectorAll("#records tbody tr");
+const seasons = new Set();
+
+seasonRows.forEach(row => {
+    seasons.add(row.cells[7].textContent.trim());
+});
+
+document.getElementById("reportSeasons").textContent = seasons.size;
+</script>
+</body></html>

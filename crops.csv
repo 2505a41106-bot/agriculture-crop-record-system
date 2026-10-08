@@ -1,0 +1,3 @@
+id,farmer_name,crop_name,field_name,area,sowing_date,harvest_date,season,expected_yield
+1,ravi kumar,rice,field 1,1,2026-10-07,2026-11-01,Kharif,35
+2,sanjay,cotton,field 1,2.5,2026-10-07,2026-11-01,Rabi,25
